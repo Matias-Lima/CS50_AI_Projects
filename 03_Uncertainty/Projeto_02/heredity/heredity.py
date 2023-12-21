@@ -139,44 +139,35 @@ def joint_probability(people, one_gene, two_genes, have_trait):
         * everyone in set `have_trait` has the trait, and
         * everyone not in set `have_trait` does not have the trait.
     """
-    def calculate_person_probability(person, one_gene, two_genes, have_trait, people):
-        person_prob = 1.0
-        person_genes = determine_genes(person, one_gene, two_genes)
-        person_trait = person in have_trait
 
-        if not has_parents(person, people):
-            person_prob *= PROBS['gene'][person_genes]
-        else:
-            mother_genes = determine_genes(people[person]['mother'], one_gene, two_genes)
-            father_genes = determine_genes(people[person]['father'], one_gene, two_genes)
+    def heranca(parent, one_gene, two_genes):
+        return (1 - PROBS['mutation']) if parent in two_genes else (0.5 if parent in one_gene else PROBS['mutation'])
 
-            # Probabilidade de herança
-            if person_genes == 2:
-                person_prob *= (mother_genes / 2) * (father_genes / 2)
-            elif person_genes == 1:
-                person_prob *= (1 - (mother_genes / 2)) * (father_genes / 2) + (1 - (father_genes / 2)) * (
-                        mother_genes / 2)
-            else:
-                person_prob *= (1 - (mother_genes / 2)) * (1 - (father_genes / 2))
-
-        person_prob *= PROBS['trait'][person_genes][person_trait]
-        return person_prob
-
-    def determine_genes(person, one_gene, two_genes):
-        return 2 if person in two_genes else 1 if person in one_gene else 0
-
-    def has_parents(person, people):
-        return people[person]['mother'] is not None and people[person]['father'] is not None
-
-    joint_prob = 1.0
-
+    joint_probabili = 1
 
     for person in people:
-        person_prob = calculate_person_probability(person, one_gene, two_genes, have_trait, people)
-        joint_prob *= person_prob
+        genes = (2 if person in two_genes else
+                 1 if person in one_gene else
+                 0)
+        trait = person in have_trait
+        person_prob = PROBS['gene'][genes]
 
-    return joint_prob
+        mother = people.get(person, {}).get('mother')
+        father = people.get(person, {}).get('father')
 
+        if mother and father:
+            # Combinations where the person inherits the gene from 0, 1 or both parents
+            from_mother = heranca(mother, one_gene, two_genes)
+            from_father = heranca(father, one_gene, two_genes)
+            person_prob = (
+                from_mother * from_father if genes == 2 else
+                (from_mother * (1 - from_father)) + ((1 - from_mother) * from_father) if genes == 1 else
+                (1 - from_mother) * (1 - from_father)
+            )
+
+        joint_probabili *= person_prob * PROBS['trait'][genes][trait]
+
+    return joint_probabili
 
 def update(probabilities, one_gene, two_genes, have_trait, p):
     """
